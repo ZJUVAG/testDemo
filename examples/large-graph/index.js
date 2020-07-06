@@ -17,9 +17,9 @@ const netv = new NetV({
     }
 })
 
-fetch('../data/bcsstk31.txt.json')
-    // fetch('../data/3elt.txt.json')
-    // fetch('../data/fin512.json')
+fetch('./data/bcsstk31.txt.json')
+    // fetch('./data/3elt.txt.json')
+    // fetch('./data/fin512.json')
     .then((res) => res.json())
     .then((json) => {
         const data = netv.Utils.transformGraphPosition(json, 600, 400, 300)
