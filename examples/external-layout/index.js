@@ -4,36 +4,44 @@
  */
 const netv = new NetV({
 	container: document.getElementById('main'),
+	nodeLimit: 1e5,
+	linkLimit: 1e7,
+	node: {
+		strokeWidth: 0,
+	},
 	link: {
-		strokeWidth: 1,
+		strokeWidth: 0.5,
 	},
 })
 const data = netv.Utils.transformGraphPosition(
-	netv.loadDataset('miserables'),
+	netv.loadDataset('patents'),
 	500,
 	400,
 	300
 )
-const colorMap = [
-	{ r: 166, g: 206, b: 227, a: 0.9 },
-	{ r: 178, g: 223, b: 138, a: 0.9 },
-	{ r: 31, g: 120, b: 180, a: 0.9 },
-	{ r: 51, g: 160, b: 44, a: 0.9 },
-	{ r: 251, g: 154, b: 153, a: 0.9 },
-	{ r: 227, g: 26, b: 28, a: 0.9 },
-	{ r: 253, g: 191, b: 111, a: 0.9 },
-	{ r: 255, g: 127, b: 0, a: 0.9 },
-	{ r: 202, g: 178, b: 214, a: 0.9 },
-	{ r: 106, g: 61, b: 154, a: 0.9 },
-	{ r: 255, g: 255, b: 153, a: 0.9 },
-	{ r: 177, g: 89, b: 40, a: 0.9 },
-]
+const colorMap = {
+	patent: { r: 102, g: 194, b: 165, a: 1 },
+	inventor: { r: 252, g: 141, b: 98, a: 1 },
+	assignee: { r: 141, g: 160, b: 203, a: 1 },
+}
+const radius = (x) => {
+	const transformer = (n, k) => 0.5 * Math.max(3, k * n ** 0.5)
+	switch (x.type) {
+		case 'patent':
+			return transformer(x.numCitations, 0.15)
+		case 'inventor':
+			return transformer(x.numPatents, 0.3)
+		case 'assignee':
+			return transformer(x.numPatents, 0.1)
+	}
+}
 data.nodes.forEach((node) => {
-	const { r, g, b, a } = colorMap[node.group]
+	const { r, g, b, a } = colorMap[node.type]
 	node.fill = { r: r / 255, g: g / 255, b: b / 255, a }
+	node.r = radius(node)
 	// NOTE: build-in dataset contains position, random it
 	node.x = Math.random() * 500 + 150 // scale and offset to center
-	node.y = Math.random() * 500
+	node.y = Math.random() * 500 + 50
 })
 netv.data(data)
 
@@ -46,8 +54,27 @@ const simulation = d3
 		'link',
 		d3.forceLink(data.links).id((d) => d.id)
 	)
-	.force('charge', d3.forceManyBody())
+	.force(
+		'collide',
+		d3.forceCollide((d) => {
+			return 2.4 * radius(d)
+		})
+	)
+	.force(
+		'charge',
+		d3.forceManyBody((d) => {
+			const factor = -100
+			const transformer = (x, k = 0.1) => Math.max(4, k * x ** 2)
+			if (d.type === 'patent')
+				return factor * transformer(d.numCitations, 0.15)
+			if (d.type === 'inventor')
+				return factor * transformer(d.numPatents, 0.3)
+			if (d.type === 'assignee') return factor * transformer(d.numPatents)
+		})
+	)
 	.force('center', d3.forceCenter(width / 2, height / 2))
+	.force('x', d3.forceX(width / 2).strength(0.13))
+	.force('y', d3.forceY(height / 2).strength(0.13))
 
 simulation.on('tick', () => {
 	data.nodes.forEach((n) => {
@@ -58,3 +85,5 @@ simulation.on('tick', () => {
 
 	netv.draw()
 })
+
+netv.draw()
